@@ -83,6 +83,52 @@ sys atomic far map sem now mio tp tpi
 
 Or add this unit on its own with `repo add <unit>`.
 
+## Using this unit from C++
+
+This unit can be used from **C and C++**. Keep the unit's `.c` implementation
+files compiled as C with `gcc`/`CC`; compile your C++ client with `g++`/`CXX`
+and use `g++` for the final mixed-language link. There is no need to rebuild
+the C library as C++.
+
+Base's shared rules recognize C++ product sources named `.cc` and compile
+them with `CXX` and `CXXFLAGS` (for example `make CXX=g++`). `CPP` names
+the preprocessor, not the C++ compiler. The commands below assume the
+headers and libraries have already been installed into `$HOME/cmn` and
+`$HOME/lib`. GNU C++17 on Linux x86-64 is the example target; GNU extensions
+in the shared types/headers are intentional.
+
+`tp.h`, `tps.h`, `tph.h` and `tpd.h` already provide C linkage, including
+through nested `common.h`; no caller `extern "C"` wrapper is required.
+The `TpProto` expansion creates distinct anonymous-struct typedefs. Use
+`tps_t`, `tpm_t`, `tph_t`, `tpd_t` and their matching uppercase public APIs;
+do not redeclare them as `struct tps_t` or assume they implicitly convert to
+`TP_t *` in C++. `TP_t` uses a GNU zero-length tail array. Keep the default
+`TP_NEW` setting consistent with the C-built library: do not enable it only
+in a C++ client, since that changes the shared layout.
+
+Save as `use_tp.cc`:
+
+```cpp
+#include <tp.h>
+int main() {
+    tps_t counter{};
+    TPS_Initialize(&counter);
+    TPS_Bump(&counter);
+    return counter.Count == 1 ? 0 : 1;
+}
+```
+
+```sh
+g++ -std=gnu++17 -I"$HOME/cmn" use_tp.cc -L"$HOME/lib" -ltp -lmio -lnow -lmap -lsem -lfar -lsys -lquadmath -lm -o use_tp
+./use_tp
+```
+
+The C++ example above was compiled, linked and run on Linux x86-64 using
+Clang 22.1.8 via `zig c++ -std=gnu++17 -nostdlib++`, with GCC 14.2-built C
+objects where needed. It uses no C++ standard-library runtime. The `g++`
+command is the GNU-toolchain form; that driver was not available for this
+smoke check. This is not an exhaustive API or concurrency test.
+
 ## License
 
 The original files are offered under `Apache-2.0 OR GPL-2.0-or-later`;
